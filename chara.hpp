@@ -42,6 +42,43 @@ enum InputType {
     Rotation = 2
 };
 
+enum class DataListId : int32_t {
+    AttackDataParams = 0,
+    ChargeParamSub = 1,
+    CommandParamSub = 2,
+    CommandGroup = 3,
+    AtemiData = 4,
+    ProjectileData = 15,
+    TriggerGroup = 16,
+    TriggerTrigger = 17,
+    RectStrike = 20,
+    RectProjectile = 21,
+    RectThrow = 22,
+    RectProximity = 23,
+    RectReflect = 24,
+    RectPush = 25,
+    RectUnique = 26,
+    RectHurtThrow = 30,
+    RectHurt = 31,
+    RectOther = 32,
+    RectGimmick = 33,
+    RectCamera = 34,
+    RectParts = 35,
+    MissionData = 50,
+    AttackDataKarma = 70,
+    AssistComboRecipeData = 75,
+    VoiceFacialData = 80,
+    VoiceFacialDataEN = 81,
+    CommonOffset = 100,
+    AttackOwnerCurve = 101,
+    AttackTargetCurve = 102,
+    ScreenVibration = 103,
+    CameraData = 104,
+    AttackDataCommon = 105,
+    RectCommon = 106,
+    Num = 107,
+}
+
 struct Charge {
     int id;
 
@@ -426,6 +463,7 @@ struct StyleData {
     int attackScale = 100;
     int defenseScale = 100;
     int gaugeGainRatio = 100;
+    int moveSpeedScale = 100;
 };
 
 struct Action {
