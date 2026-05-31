@@ -19,6 +19,72 @@ int categoryToDmgType[76] = {
     0x26, 0x26, 0x26, 0x26, 0x26, 0x20, 0x1D, 0x03,
     0x3, 0x17, 0x4, 0x17,
 };
+std::string branchTypes[64] = {
+    "ALWAYS",
+    "ELSE",
+    "HIT",
+    "HIT_CHARA_ID",
+    "GUARD",
+    "SWING",
+    "_6",
+    "BODY_PUSH",
+    "_POSE_STATUS",
+    "_ACTION_STATUS",
+    "_ACTION_CATEGORY",
+    "ACTION_ID",
+    "HEIGHT",
+    "LANDING",
+    "WALL",
+    "OBSTACLE",
+    "SIDE",
+    "RANGE",
+    "STEER",
+    "TRIGGER",
+    "COMMAND",
+    "ARMOR",
+    "ATEMI",
+    "PARRY",
+    "GAUGE",
+    "TARGET_LOST",
+    "CHARA_ID",
+    "PARTNER_NO",
+    "FIGHT_STYLE",
+    "UNIQUE_PARAM",
+    "UNIQUE_TIMER",
+    "LOOP_COUNT",
+    "_32",
+    "FINISH",
+    "_34",
+    "RANDOM",
+    "CATCH",
+    "HIT_CATCH",
+    "NEGATIVE",
+    "AREA_PARENT",
+    "AREA_TARGET",
+    "AREA_RIVAL_TEAM",
+    "SHOT_HIT",
+    "SHOT_DAMAGE",
+    "SHOT_REFLECT",
+    "SHOT_HIT_COUNT_0",
+    "COUNTER",
+    "INCAPACITATED",
+    "WIN_CANCEL",
+    "STATUS",
+    "DMG_GIMMICK",
+    "AREA_SCREEN",
+    "SHOT_COUNT",
+    "ZONE_DAMAGE",
+    "TOUCH",
+    "CERTAIN_REASONS",
+    "_56",
+    "_57",
+    "_58",
+    "_59",
+    "PARTS_VITAL",
+    "SHOT_LIFETIME_0",
+    "TIMER_COUNT",
+    "TRIGGER_INPUT",
+};
 
 bool charFileExists(const std::string &path, const std::string &charFileName)
 {
@@ -123,18 +189,16 @@ void loadChargesFChar(nlohmann::json* pCharJson, CharacterData* pRet)
     nlohmann::json &chargeParamJson = chargeJson["obj"];
 
     for (int i = 0; i < chargeJson["idTbl"].size(); i++) {
-        /*nlohmann::json *pResource = &key;
-        if (key.contains("resource")) {
-            pResource = &key["resource"];
-        }
+        Charge charge;
+        int chargeID = chargeJson["idTbl"][i];
+        nlohmann::json &chargeParam = chargeParamJson[i];
+        charge.id = chargeID;
+        charge.okKeyFlags = chargeParam["Parameters"]["OKKey"];
+        charge.okCondFlags = chargeParam["Parameters"]["OKPara"]["_LeverCond"].get<int>() | (chargeParam["Parameters"]["OKPara"]["_KeyCond"].get<int>() << 8);
+        charge.chargeFrames = chargeParam["OK_Frame"];
+        charge.keepFrames = chargeParam["KEEP_Frame"];
 
-        charge.id = (*pResource)["charge_id"];
-        charge.okKeyFlags = (*pResource)["ok_key_flags"];
-        charge.okCondFlags = (*pResource)["ok_key_cond_check_flags"];
-        charge.chargeFrames = (*pResource)["ok_frame"];
-        charge.keepFrames = (*pResource)["keep_frame"];
-
-        pRet->charges.push_back(charge);*/
+        pRet->charges.push_back(charge);
     }
 }
 
@@ -240,6 +304,13 @@ void loadCommandsFChar(nlohmann::json* pCharJson, CharacterData* pRet)
 
         Command command;
         command.id = commandID;
+        for (auto& cmnCommand : pRet->commands)
+        {
+            if (cmnCommand.id == command.id) {
+                command = cmnCommand;
+                break;
+            }
+        }
         nlohmann::json &commandGroup = commandParamJson[i]["Commands"]["items"];
         command.variants.reserve(commandGroup.size());
 
@@ -258,6 +329,7 @@ void loadCommandsFChar(nlohmann::json* pCharJson, CharacterData* pRet)
 
                 input.type = (InputType)(*pInput)["Type"].get<int>();
                 input.numFrames = (*pInput)["Frame"];
+                commandVariant.totalMaxFrames += input.numFrames;
 
                 nlohmann::json *pInputNorm = &(*pInput)["Parameters"];
                 input.okKeyFlags = (*pInputNorm)["OKKey"];
@@ -277,7 +349,7 @@ void loadCommandsFChar(nlohmann::json* pCharJson, CharacterData* pRet)
                 }
 
                 if (input.type == InputType::ChargeRelease) {
-                    int chargeID = (*pInputNorm)["ChargeID"];
+                    int chargeID = (*pInput)["ChargeID"];
                     input.pCharge = nullptr;
                     for (auto& charge : pRet->charges) {
                         if (charge.id == chargeID) {
@@ -295,7 +367,19 @@ void loadCommandsFChar(nlohmann::json* pCharJson, CharacterData* pRet)
             command.variants.push_back(commandVariant);
         }
 
-        pRet->commands.push_back(command);
+        bool bIsCommon = false;
+        for (auto& cmnCommand : pRet->commands)
+        {
+            if (cmnCommand.id == command.id) {
+                cmnCommand = command;
+                bIsCommon = true;
+                break;
+            }
+        }
+
+        if (!bIsCommon) {
+            pRet->commands.push_back(command);
+        }
     }
 }
 
@@ -406,6 +490,14 @@ void loadTriggersFChar(nlohmann::json* pCharJson, CharacterData* pRet)
 
         nlohmann::json &triggerData = triggerParamJson[i];
         trigger.id = triggerJson["idTbl"][i];
+
+        for (auto& cmnTrigger : pRet->triggers)
+        {
+            if (cmnTrigger.id == trigger.id) {
+                trigger = cmnTrigger;
+                break;
+            }
+        }
         trigger.actionID = triggerData["Action"];
 
         nlohmann::json *pCondition = &triggerData["Condition"];
@@ -416,19 +508,16 @@ void loadTriggersFChar(nlohmann::json* pCharJson, CharacterData* pRet)
         }
         else 
         {
-            for (auto style : (*pCondition)["_ValidStyle"])
-            {
-                trigger.validStyles |= (1 << style.get<int>());
-            }
+            trigger.validStyles = (*pCondition)["_ValidStyle"][0].get<int>();
         }
 
         nlohmann::json *pNorm = &triggerData["Normal"];
         trigger.okKeyFlags = (*pNorm)["Key"];
-        trigger.okCondFlags = 0;
-        trigger.okCondFlags |= (1 << (*pNorm)["Lever"]["State"].get<int>() << 10);
-        trigger.okCondFlags |= (*pNorm)["Lever"]["Cond"].get<int>();
-        trigger.okCondFlags |= ((*pNorm)["Button"]["State"].get<int>() << 14);
-        trigger.okCondFlags |= (1 << (*pNorm)["Button"]["Cond"].get<int>() << 5);
+        auto leverCond = (*pNorm)["Lever"]["Cond"].get<int>();
+        auto buttonCond = (*pNorm)["Button"]["Cond"].get<int>();
+        auto leverState = (*pNorm)["Lever"]["State"].get<int>();
+        auto buttonState = (*pNorm)["Button"]["State"].get<int>();
+        trigger.okCondFlags = leverCond & 7 | (32 * (buttonCond & 7 | (32 * (leverState & 0xF | (16 * (buttonState & 0xF))))));
         trigger.ngKeyFlags = (*pNorm)["NGKey"];
         trigger.dcExcFlags = (*pNorm)["KeyD"];
         trigger.dcIncFlags = (*pNorm)["KeyI"];
@@ -507,7 +596,19 @@ void loadTriggersFChar(nlohmann::json* pCharJson, CharacterData* pRet)
 
         trigger.flags = triggerData["Tags"]["Flags"];
 
-        pRet->triggers.push_back(trigger);
+        bool bIsCommon = false;
+        for (auto& cmnTrigger : pRet->triggers)
+        {
+            if (cmnTrigger.id == trigger.id) {
+                cmnTrigger = trigger;
+                bIsCommon = true;
+                break;
+            }
+        }
+
+        if (!bIsCommon) {
+            pRet->triggers.push_back(trigger);
+        }
     }
 }
 
@@ -543,7 +644,19 @@ void loadTriggerGroups(nlohmann::json* pTriggerGroupsJson, CharacterData* pRet)
             triggerGroup.entries.push_back(tgEntry);
         }
 
-        pRet->triggerGroups.push_back(triggerGroup);
+        bool bIsCommon = false;
+        for (auto& cmnTriggerGroup : pRet->triggerGroups)
+        {
+            if (cmnTriggerGroup.id == triggerGroup.id) {
+                cmnTriggerGroup = triggerGroup;
+                bIsCommon = true;
+                break;
+            }
+        }
+
+        if (!bIsCommon) {
+            pRet->triggerGroups.push_back(triggerGroup);
+        }
     }
 }
 
@@ -578,6 +691,13 @@ void loadTriggerGroupsFChar(nlohmann::json* pCharJson, CharacterData* pRet)
         nlohmann::json &group = triggerGroupJson["obj"][i];
         TriggerGroup triggerGroup;
         triggerGroup.id = triggerGroupJson["idTbl"][i];
+        for (auto& cmnTriggerGroup : pRet->triggerGroups)
+        {
+            if (cmnTriggerGroup.id == triggerGroup.id) {
+                triggerGroup = cmnTriggerGroup;
+                break;
+            }
+        }
 
         for (int i = 0; i < group["SelectTriggers"].size(); i++) {
             auto selectTrigger = group["SelectTriggers"][i];
@@ -601,8 +721,8 @@ void loadTriggerGroupsFChar(nlohmann::json* pCharJson, CharacterData* pRet)
                     triggerGroup.entries.push_back(tgEntry);
                 }
             }
-            pRet->triggerGroups.push_back(triggerGroup);
         }
+        pRet->triggerGroups.push_back(triggerGroup);
     }
 }
 
@@ -1086,10 +1206,10 @@ void loadHitBoxKeysFChar(nlohmann::json* pHitBoxJson, std::vector<HitBoxKey>* pO
         newKey.offsetX = Fixed(hitBox["STRUCT_RootOffset_X"].get<int>());
         newKey.offsetY = Fixed(hitBox["STRUCT_RootOffset_Y"].get<int>());
 
-        if (key["_ValidStyle"].size()) newKey.hasValidStyle = true;
-        for (auto style : key["_ValidStyle"])
+        if (key["_ValidStyle"].size()) 
         {
-            newKey.validStyle |= (1 << style.get<int>());
+            newKey.hasValidStyle = true;
+            newKey.validStyle = key["_ValidStyle"][0].get<int>();
         }
 
         hitBoxType type = hit;
@@ -1136,7 +1256,7 @@ void loadHitBoxKeysFChar(nlohmann::json* pHitBoxJson, std::vector<HitBoxKey>* pO
         }
 
         int hitID = hitBox["HitID"];
-        bool hasHitID = hitBox.value("_IsHitID", hitBox.value("_UseHitID", false));
+        bool hasHitID = hitBox["CollisionType"].get<int>() < 3 || (isOther ? (1 << (hitBox["CollisionType"].get<int>() & 0x1F)) & 0x380 : (1 << (hitBox["CollisionType"].get<int>() & 0x1F)) & 0x1000);
         if (hitID < 0) {
             hitID = 15;
         }
@@ -1301,8 +1421,9 @@ void loadUniqueBoxKeysFChar(nlohmann::json* pHitBoxJson, std::vector<UniqueBoxKe
         newKey.uniquePitcher = hitBox["CheckType"] == 0;
         newKey.applyOpToTarget = hitBox["PropHolder"] == 1;
 
-        newKey.ops.reserve(hitBox["Datas"].size());
-        for (auto& [dataID, dataOp] : hitBox["Datas"].items()) {
+        newKey.ops.reserve(hitBox["Datas"]["items"].size());
+        for (int i = 0; i < hitBox["Datas"]["items"].size(); i++) {
+            auto& dataOp = hitBox["Datas"]["items"][i];
             UniqueBoxOp newOp;
             newOp.op = dataOp["OpeType"];
             newOp.opParam0 = dataOp["Param00"];
@@ -1418,6 +1539,40 @@ void loadPlaceKeys(nlohmann::json* pPlaceJson, std::vector<PlaceKey>* pOutputVec
     }
 }
 
+void loadPlaceKeysFChar(nlohmann::json* pPlaceJson, std::vector<PlaceKey>* pOutputVector, bool isBG)
+{
+    if (!pPlaceJson) {
+        return;
+    }
+
+    for (int i = 0; i < (*pPlaceJson)["dataTbl"].size(); i++) {
+        auto& key = (*pPlaceJson)["dataTbl"][i];
+        auto& placeKey = (*pPlaceJson)["obj"][i];
+        if (!key.contains("startFrame")) {
+            continue;
+        }
+        PlaceKey newKey;
+        newKey.startFrame = key["startFrame"];
+        newKey.endFrame = key["endFrame"];
+        newKey.optionFlag = placeKey.value("OptionFlag", 0);
+        newKey.ratio = Fixed((double)placeKey["Ratio"]["v"] / 65536.0);
+        newKey.axis = placeKey.value("Axis", 0);
+        newKey.bgOnly = isBG;
+
+        if (placeKey.contains("PosList")) {
+            newKey.posList.reserve(placeKey["PosList"].size());
+            for (int i = 0; i < placeKey["PosList"].size(); i++) {
+                PlaceKeyPos pos;
+                pos.frame = i;
+                pos.offset = Fixed((double)placeKey["PosList"][i]["v"] / 65536.0);
+                newKey.posList.push_back(pos);
+            }
+        }
+
+        pOutputVector->push_back(newKey);
+    }
+}
+
 void loadSwitchKeys(nlohmann::json* pSwitchJson, std::vector<SwitchKey>* pOutputVector)
 {
     if (!pSwitchJson) {
@@ -1439,6 +1594,29 @@ void loadSwitchKeys(nlohmann::json* pSwitchJson, std::vector<SwitchKey>* pOutput
     }
 }
 
+void loadSwitchKeysFChar(nlohmann::json* pSwitchJson, std::vector<SwitchKey>* pOutputVector)
+{
+    if (!pSwitchJson) {
+        return;
+    }
+
+    for (int i = 0; i < (*pSwitchJson)["dataTbl"].size(); i++) {
+        auto& key = (*pSwitchJson)["dataTbl"][i];
+        auto& switchKey = (*pSwitchJson)["obj"][i];
+        if (!key.contains("startFrame")) {
+            continue;
+        }
+        SwitchKey newKey;
+        newKey.startFrame = key["startFrame"];
+        newKey.endFrame = key["endFrame"];
+        newKey.systemFlag = switchKey["SystemFlag"];
+        newKey.operationFlag = switchKey["OperationFlag"];
+        newKey.validStyle = switchKey["_ValidStyle"].size() ? switchKey["_ValidStyle"][0].get<int>() : 0;
+
+        pOutputVector->push_back(newKey);
+    }
+}
+
 void loadEventKeys(nlohmann::json* pEventJson, std::vector<EventKey>* pOutputVector)
 {
     if (!pEventJson) {
@@ -1453,6 +1631,34 @@ void loadEventKeys(nlohmann::json* pEventJson, std::vector<EventKey>* pOutputVec
         newKey.startFrame = eventKey["_StartFrame"];
         newKey.endFrame = eventKey["_EndFrame"];
         newKey.validStyle = eventKey.value("_ValidStyle", 0);
+        newKey.type = eventKey["Type"];
+        newKey.id = eventKey["ID"];
+        newKey.param01 = eventKey["Param01"];
+        newKey.param02 = eventKey["Param02"];
+        newKey.param03 = eventKey["Param03"];
+        newKey.param04 = eventKey["Param04"];
+        newKey.param05 = eventKey["Param05"];
+
+        pOutputVector->push_back(newKey);
+    }
+}
+
+void loadEventKeysFChar(nlohmann::json* pEventJson, std::vector<EventKey>* pOutputVector)
+{
+    if (!pEventJson) {
+        return;
+    }
+
+    for (int i = 0; i < (*pEventJson)["dataTbl"].size(); i++) {
+        auto& key = (*pEventJson)["dataTbl"][i];
+        auto& eventKey = (*pEventJson)["obj"][i];
+        if (!key.contains("startFrame")) {
+            continue;
+        }
+        EventKey newKey;
+        newKey.startFrame = key["startFrame"];
+        newKey.endFrame = key["endFrame"];
+        newKey.validStyle = eventKey["_ValidStyle"].size() ? eventKey["_ValidStyle"][0].get<int>() : 0;
         newKey.type = eventKey["Type"];
         newKey.id = eventKey["ID"];
         newKey.param01 = eventKey["Param01"];
@@ -1485,6 +1691,28 @@ void loadWorldKeys(nlohmann::json* pWorldJson, std::vector<WorldKey>* pOutputVec
     }
 }
 
+void loadWorldKeysFChar(nlohmann::json* pWorldJson, std::vector<WorldKey>* pOutputVector)
+{
+    if (!pWorldJson) {
+        return;
+    }
+
+    for (int i = 0; i < (*pWorldJson)["dataTbl"].size(); i++) {
+        auto& key = (*pWorldJson)["dataTbl"][i];
+        auto& worldKey = (*pWorldJson)["obj"][i];
+        if (!key.contains("startFrame")) {
+            continue;
+        }
+        WorldKey newKey;
+        newKey.startFrame = key["startFrame"];
+        newKey.endFrame = key["endFrame"];
+        newKey.type = worldKey["Type"];
+        newKey.flags = worldKey["Flags"];
+
+        pOutputVector->push_back(newKey);
+    }
+}
+
 void loadLockKeys(nlohmann::json* pLockJson, std::vector<LockKey>* pOutputVector, std::map<int, HitData*>& hitByID)
 {
     if (!pLockJson) {
@@ -1498,6 +1726,37 @@ void loadLockKeys(nlohmann::json* pLockJson, std::vector<LockKey>* pOutputVector
         LockKey newKey;
         newKey.startFrame = lockKey["_StartFrame"];
         newKey.endFrame = lockKey["_EndFrame"];
+        newKey.type = lockKey["Type"];
+        newKey.param01 = lockKey["Param01"];
+        newKey.param02 = lockKey["Param02"];
+        newKey.param03 = lockKey["Param03"];
+
+        if (newKey.type == 2) {
+            auto hitIt = hitByID.find(newKey.param02);
+            if (hitIt != hitByID.end()) {
+                newKey.pHitEntry = &hitIt->second->common[0];
+            }
+        }
+
+        pOutputVector->push_back(newKey);
+    }
+}
+
+void loadLockKeysFChar(nlohmann::json* pLockJson, std::vector<LockKey>* pOutputVector, std::map<int, HitData*>& hitByID)
+{
+    if (!pLockJson) {
+        return;
+    }
+
+    for (int i = 0; i < (*pLockJson)["dataTbl"].size(); i++) {
+        auto& key = (*pLockJson)["dataTbl"][i];
+        auto& lockKey = (*pLockJson)["obj"][i];
+        if (!key.contains("startFrame")) {
+            continue;
+        }
+        LockKey newKey;
+        newKey.startFrame = key["startFrame"];
+        newKey.endFrame = key["endFrame"];
         newKey.type = lockKey["Type"];
         newKey.param01 = lockKey["Param01"];
         newKey.param02 = lockKey["Param02"];
@@ -1543,6 +1802,37 @@ void loadBranchKeys(nlohmann::json* pBranchJson, std::vector<BranchKey>* pOutput
     }
 }
 
+void loadBranchKeysFChar(nlohmann::json* pBranchJson, std::vector<BranchKey>* pOutputVector)
+{
+    if (!pBranchJson) {
+        return;
+    }
+
+    for (int i = 0; i < (*pBranchJson)["dataTbl"].size(); i++) {
+        auto& key = (*pBranchJson)["dataTbl"][i];
+        auto& branchKey = (*pBranchJson)["obj"][i];
+        if (!key.contains("startFrame")) {
+            continue;
+        }
+        BranchKey newKey;
+        newKey.startFrame = key["startFrame"];
+        newKey.endFrame = key["endFrame"];
+        newKey.type = branchKey["Type"];
+        newKey.param00 = branchKey["Param00"];
+        newKey.param01 = branchKey["Param01"];
+        newKey.param02 = branchKey["Param02"];
+        newKey.param03 = branchKey["Param03"];
+        newKey.param04 = branchKey["Param04"];
+        newKey.branchAction = branchKey["Action"];
+        newKey.branchFrame = branchKey["ActionFrame"];
+        newKey.keepFrame = branchKey["Attr"].get<int>() & 0x100 || branchKey["Attr"].get<int>() & 0x2;
+        newKey.keepPlace = branchKey["Attr"].get<int>() & 0x20;
+        newKey.typeName = branchTypes[newKey.type];
+
+        pOutputVector->push_back(newKey);
+    }
+}
+
 void loadShotKeys(nlohmann::json* pShotJson, std::vector<ShotKey>* pOutputVector)
 {
     if (!pShotJson) {
@@ -1561,6 +1851,33 @@ void loadShotKeys(nlohmann::json* pShotJson, std::vector<ShotKey>* pOutputVector
         newKey.flags = shotKey["SpawnFlag"];
         newKey.posOffsetX = Fixed(shotKey["PosOffset"]["x"].get<double>());
         newKey.posOffsetY = Fixed(shotKey["PosOffset"]["y"].get<double>());
+        newKey.actionId = shotKey["ActionId"];
+        newKey.styleIdx = shotKey["StyleIdx"];
+
+        pOutputVector->push_back(newKey);
+    }
+}
+
+void loadShotKeysFChar(nlohmann::json* pShotJson, std::vector<ShotKey>* pOutputVector)
+{
+    if (!pShotJson) {
+        return;
+    }
+
+    for (int i = 0; i < (*pShotJson)["dataTbl"].size(); i++) {
+        auto& key = (*pShotJson)["dataTbl"][i];
+        auto& shotKey = (*pShotJson)["obj"][i];
+        if (!key.contains("startFrame")) {
+            continue;
+        }
+        ShotKey newKey;
+        newKey.startFrame = key["startFrame"];
+        newKey.endFrame = key["endFrame"];
+        newKey.validStyle = shotKey["_ValidStyle"].size() ? shotKey["_ValidStyle"][0].get<int>() : 0;
+        newKey.operation = shotKey["Operation"];
+        newKey.flags = shotKey["SpawnFlag"];
+        newKey.posOffsetX = Fixed((double)shotKey["PosOffset"]["x"]["v"] / 65536.0);
+        newKey.posOffsetY = Fixed((double)shotKey["PosOffset"]["y"]["v"] / 65536.0);
         newKey.actionId = shotKey["ActionId"];
         newKey.styleIdx = shotKey["StyleIdx"];
 
@@ -1596,6 +1913,36 @@ void loadTriggerKeys(nlohmann::json* pTriggerJson, std::vector<TriggerKey>* pOut
     }
 }
 
+void loadTriggerKeysFChar(nlohmann::json* pTriggerJson, std::vector<TriggerKey>* pOutputVector, std::map<int, TriggerGroup*>& triggerGroupByID)
+{
+    if (!pTriggerJson) {
+        return;
+    }
+
+    for (int i = 0; i < (*pTriggerJson)["dataTbl"].size(); i++) {
+        auto& key = (*pTriggerJson)["dataTbl"][i];
+        auto& triggerKey = (*pTriggerJson)["obj"][i];
+        if (!key.contains("startFrame")) {
+            continue;
+        }
+        TriggerKey newKey;
+        newKey.startFrame = key["startFrame"];
+        newKey.endFrame = key["endFrame"];
+        newKey.validStyle = triggerKey["_ValidStyle"].size() ? triggerKey["_ValidStyle"][0].get<int>() : 0;
+        newKey.other = triggerKey["ConditionFlag"].get<int>() & 0x20040;
+        newKey.condition = triggerKey["ConditionFlag"].get<int>() & 0x3C0F;
+        newKey.state = triggerKey["ConditionFlag"].get<int>() & 0x3C03B0;
+
+        int triggerGroupID = triggerKey["TriggerGroup"];
+        auto it = triggerGroupByID.find(triggerGroupID);
+        if (it != triggerGroupByID.end()) {
+            newKey.pTriggerGroup = it->second;
+        }
+
+        pOutputVector->push_back(newKey);
+    }
+}
+
 void loadStatusKeys(nlohmann::json* pStatusJson, std::vector<StatusKey>* pOutputVector)
 {
     if (!pStatusJson) {
@@ -1609,6 +1956,31 @@ void loadStatusKeys(nlohmann::json* pStatusJson, std::vector<StatusKey>* pOutput
         StatusKey newKey;
         newKey.startFrame = statusKey["_StartFrame"];
         newKey.endFrame = statusKey["_EndFrame"];
+        newKey.landingAdjust = statusKey["LandingAdjust"];
+        newKey.poseStatus = statusKey["PoseStatus"];
+        newKey.actionStatus = statusKey["ActionStatus"];
+        newKey.jumpStatus = statusKey["JumpStatus"];
+        newKey.side = statusKey["Side"];
+
+        pOutputVector->push_back(newKey);
+    }
+}
+
+void loadStatusKeysFChar(nlohmann::json* pStatusJson, std::vector<StatusKey>* pOutputVector)
+{
+    if (!pStatusJson) {
+        return;
+    }
+
+    for (int i = 0; i < (*pStatusJson)["dataTbl"].size(); i++) {
+        auto& key = (*pStatusJson)["dataTbl"][i];
+        auto& statusKey = (*pStatusJson)["obj"][i];
+        if (!key.contains("startFrame")) {
+            continue;
+        }
+        StatusKey newKey;
+        newKey.startFrame = key["startFrame"];
+        newKey.endFrame = key["endFrame"];
         newKey.landingAdjust = statusKey["LandingAdjust"];
         newKey.poseStatus = statusKey["PoseStatus"];
         newKey.actionStatus = statusKey["ActionStatus"];
@@ -1851,12 +2223,13 @@ void loadHitsFChar(nlohmann::json* pCharJson, std::vector<HitData>* pOutputVecto
         HitData newHit;
         newHit.id = hitJson["idTbl"][i];
 
-        nlohmann::json &hitData = hitParamJson[i];
+        nlohmann::json &hitData = hitParamJson[i]["Root"];
 
         auto loadHitEntryFChar = [](nlohmann::json &hitData, HitData& newHit, bool bCommon) {
             nlohmann::json &behaviors = bCommon ? hitData["_CommonBehaviors"]["items"] : hitData["_Behaviors"]["items"];
-            for (auto& behavior : behaviors)
+            for (int i = 0; i < behaviors.size(); i++)
             {
+                auto& behavior = behaviors[i];
                 int idx = behavior["IndexID"];
                 auto& slot = bCommon ? newHit.common[idx] : newHit.param[idx];
                 slot.moveType = behavior["Category1"];
@@ -1894,8 +2267,9 @@ void loadHitsFChar(nlohmann::json* pCharJson, std::vector<HitData>* pOutputVecto
                 slot.attr3 = attr3;
             }
             nlohmann::json &gauges = bCommon ? hitData["_CommonGauges"]["items"] : hitData["_Gauges"]["items"];
-            for (auto& gauge : gauges)
+            for (int i = 0; i < gauges.size(); i++)
             {
+                auto& gauge = gauges[i];
                 int idx = gauge["IndexID"];
                 auto& slot = bCommon ? newHit.common[idx] : newHit.param[idx];
                 slot.dmgValue = gauge["DamageValue"];
@@ -1930,15 +2304,17 @@ void loadHitsFChar(nlohmann::json* pCharJson, std::vector<HitData>* pOutputVecto
                 slot.focusGainOwn = gauge["FocusOwner"];
             }
             nlohmann::json &gaugeExs = bCommon ? hitData["_CommonGaugeExs"]["items"] : hitData["_GaugeExs"]["items"];
-            for (auto& gaugeEx : gaugeExs)
+            for (int i = 0; i < gaugeExs.size(); i++)
             {
+                auto& gaugeEx = gaugeExs[i];
                 int idx = gaugeEx["IndexID"];
                 auto& slot = bCommon ? newHit.common[idx] : newHit.param[idx];
                 slot.focusGainTarget = gaugeEx["FocusTarget0"];
             }
             nlohmann::json &timers = bCommon ? hitData["_CommonTimers"]["items"] : hitData["_Timers"]["items"];
-            for (auto& timer : timers)
+            for (int i = 0; i < timers.size(); i++)
             {
+                auto& timer = timers[i];
                 int idx = timer["IndexID"];
                 auto& slot = bCommon ? newHit.common[idx] : newHit.param[idx];
                 slot.hitStopOwner = timer["HitStopOwner"];
@@ -1948,8 +2324,9 @@ void loadHitsFChar(nlohmann::json* pCharJson, std::vector<HitData>* pOutputVecto
                 slot.downTime = timer["DownTime"];
             }
             nlohmann::json &combos = bCommon ? hitData["_CommonCombos"]["items"] : hitData["_Combos"]["items"];
-            for (auto& combo : combos)
+            for (int i = 0; i < combos.size(); i++)
             {
+                auto& combo = combos[i];
                 int idx = combo["IndexID"];
                 auto& slot = bCommon ? newHit.common[idx] : newHit.param[idx];
                 slot.comboAdd = combo["ComboAdd"];
@@ -1958,8 +2335,9 @@ void loadHitsFChar(nlohmann::json* pCharJson, std::vector<HitData>* pOutputVecto
                 slot.juggleLimit = combo["JuggleLimit"];
             }
             nlohmann::json &bounds = bCommon ? hitData["_CommonBounds"]["items"] : hitData["_Bounds"]["items"];
-            for (auto& bound : bounds)
+            for (int i = 0; i < bounds.size(); i++)
             {
+                auto& bound = bounds[i];
                 int idx = bound["IndexID"];
                 auto& slot = bCommon ? newHit.common[idx] : newHit.param[idx];
                 slot.floorTime = bound["FloorTime"];
@@ -1971,8 +2349,9 @@ void loadHitsFChar(nlohmann::json* pCharJson, std::vector<HitData>* pOutputVecto
                 slot.wallDestY = bound["WallDestY"];
             }
             nlohmann::json &advances = bCommon ? hitData["_CommonAdvances"]["items"] : hitData["_Advances"]["items"];
-            for (auto& advance : advances)
+            for (int i = 0; i < advances.size(); i++)
             {
+                auto& advance = advances[i];
                 int idx = advance["IndexID"];
                 auto& slot = bCommon ? newHit.common[idx] : newHit.param[idx];
                 slot.dmgKind = advance["DamageKind"];
@@ -1980,8 +2359,9 @@ void loadHitsFChar(nlohmann::json* pCharJson, std::vector<HitData>* pOutputVecto
                 slot.attr1 = advance["Attr1"];
             }
             nlohmann::json &throws = bCommon ? hitData["_Throws"]["items"] : hitData["_Throws"]["items"];
-            for (auto& throw_ : throws)
+            for (int i = 0; i < throws.size(); i++)
             {
+                auto& throw_ = throws[i];
                 int idx = throw_["IndexID"];
                 auto& slot = bCommon ? newHit.common[idx] : newHit.param[idx];
                 slot.attr2 = throw_["Attr2"];
@@ -2393,8 +2773,15 @@ void loadActionsFromMovesFChar(nlohmann::json* pCharJson, nlohmann::json* pNames
         for (int j = 0; j < style["dataTbl"].size(); j++)
         {
             auto& action = style["dataTbl"][j];
+            auto actionID = action["actionID"];
             Action newAction;
-            newAction.actionID = action["actionID"];
+            for (auto& cmnAction : pRet->actions) {
+                if (cmnAction.actionID == actionID) {
+                    newAction = cmnAction;
+                    break;
+                }
+            }
+            newAction.actionID = actionID;
             newAction.styleID = i;
             std::string actionIDStr = to_string_leading_zeroes(newAction.actionID, 4);
             if (pNamesJson->contains(actionIDStr))
@@ -2470,8 +2857,49 @@ void loadActionsFromMovesFChar(nlohmann::json* pCharJson, nlohmann::json* pNames
                 {
                     loadSteerKeysFChar(&key, &newAction.steerKeys, true);
                 }
+                if (type == "CharacterAsset.PlaceKey") {
+                    loadPlaceKeysFChar(&key, &newAction.placeKeys, false);
+                }
+                if (type == "CharacterAsset.BGPlaceKey") {
+                    loadPlaceKeysFChar(&key, &newAction.placeKeys, true);
+                }
+                if (type == "CharacterAsset.SwitchKey") {
+                    loadSwitchKeysFChar(&key, &newAction.switchKeys);
+                }
+                if (type == "CharacterAsset.ExtSwitchKey") {
+                    loadSwitchKeysFChar(&key, &newAction.switchKeys);
+                }
+                if (type == "CharacterAsset.EventKey") {
+                    loadEventKeysFChar(&key, &newAction.eventKeys);
+                }
+                if (type == "CharacterAsset.WorldKey") {
+                    loadWorldKeysFChar(&key, &newAction.worldKeys);
+                }
+                if (type == "CharacterAsset.LockKey") {
+                    loadLockKeysFChar(&key, &newAction.lockKeys, hitByID);
+                }
+                if (type == "CharacterAsset.BranchKey") {
+                    loadBranchKeysFChar(&key, &newAction.branchKeys);
+                }
+                if (type == "CharacterAsset.ShotKey") {
+                    loadShotKeysFChar(&key, &newAction.shotKeys);
+                }
+                if (type == "CharacterAsset.TriggerKey") {
+                    loadTriggerKeysFChar(&key, &newAction.triggerKeys, triggerGroupByID);
+                }
+                if (type == "CharacterAsset.StatusKey") {
+                    loadStatusKeysFChar(&key, &newAction.statusKeys);
+                }
             }
-            pRet->actions.push_back(newAction);
+            bool bIsCommon = false;
+            for (auto& cmnAction : pRet->actions) {
+                if (cmnAction.actionID == actionID) {
+                    cmnAction = newAction;
+                    bIsCommon = true;
+                    break;
+                }
+            }
+            if (!bIsCommon) pRet->actions.push_back(newAction);
         }
     }
 }
@@ -2527,8 +2955,11 @@ CharacterData *loadCharacter(std::string charName, int charVersion)
         loadStylesFChar(pCharJson, &pRet->styles);
 
         loadChargesFChar(pCharJson, pRet);
+        loadCommandsFChar(pCommonJson, pRet);
         loadCommandsFChar(pCharJson, pRet);
+        loadTriggersFChar(pCommonJson, pRet);
         loadTriggersFChar(pCharJson, pRet);
+        loadTriggerGroupsFChar(pCharJson, pRet);
         loadTriggerGroupsFChar(pCharJson, pRet);
 
         for (auto& triggerGroup : pRet->triggerGroups) {
@@ -2548,7 +2979,7 @@ CharacterData *loadCharacter(std::string charName, int charVersion)
         auto& triggerGroup0 = pRet->triggerGroupByID[0];
         for (auto& triggerGroupEntry : triggerGroup0->entries) {
             std::string actionID = to_string_leading_zeroes(triggerGroupEntry.actionID, 4);
-            std::string actionString = actionID + " " + (*pNamesJson)[actionID].get<std::string>();
+            std::string actionString = actionID + " " + (*pNamesJson).value("actionID", "Unknown action");
             pRet->vecMoveList.push_back(strdup(actionString.c_str()));
         }
 
