@@ -6,6 +6,18 @@
 
 std::unordered_map<std::string, nlohmann::json> mapCharFileLoader;
 std::unordered_map<std::string, CharacterData*> mapCharDataLoader;
+int categoryToDmgType[76] = {
+    0x3, 0x3, 0x3, 0x17, 0x17, 0x26, 0x26, 0x3,
+    0x3, 0x8, 0x4, 0x5, 0xA, 0xB, 0xC, 0xD,
+    0xF, 0xF, 0x6, 0x9, 0x15, 0x16, 0x11, 0x12,
+    0x0, 0x0, 0x1, 0x2, 0x19, 0x19, 0x19, 0x19,
+    0x1A, 0x1B, 0x1B, 0x1B, 0x1B, 0x1E, 0x1E, 0x1E,
+    0x1E, 0x1F, 0x1F, 0x1F, 0x1F, 0x26, 0x26, 0x26,
+    0x26, 0x26, 0x26, 0x26, 0x26, 0x26, 0x26, 0x26,
+    0x26, 0x26, 0x26, 0x26, 0x26, 0x26, 0x26, 0x26,
+    0x26, 0x26, 0x26, 0x26, 0x26, 0x20, 0x1D, 0x03,
+    0x3, 0x17, 0x4, 0x17,
+};
 
 bool charFileExists(const std::string &path, const std::string &charFileName)
 {
@@ -88,7 +100,7 @@ void loadCharges(nlohmann::json* pChargeJson, CharacterData* pRet)
 
 void loadChargesFChar(nlohmann::json* pCharJson, CharacterData* pRet)
 {
-    if (!pCharJson || !pCharInfoJson.contains("dataListIdTbl") || !pCharInfoJson.contains("dataListTbl")) {
+    if (!pCharJson || !pCharJson.contains("dataListIdTbl") || !pCharJson.contains("dataListIdTbl")) {
         return;
     }
 
@@ -107,10 +119,10 @@ void loadChargesFChar(nlohmann::json* pCharJson, CharacterData* pRet)
 
     pRet->charges.reserve(chargeJson->size());
 
-    for (auto& [keyID, key] : chargeJson->items()) {
-        Charge charge;
+    nlohmann::json &chargeParamJson = chargeJson["obj"];
 
-        nlohmann::json *pResource = &key;
+    for (int i = 0; i < chargeJson["idTbl"].size(); i++) {
+        /*nlohmann::json *pResource = &key;
         if (key.contains("resource")) {
             pResource = &key["resource"];
         }
@@ -121,7 +133,7 @@ void loadChargesFChar(nlohmann::json* pCharJson, CharacterData* pRet)
         charge.chargeFrames = (*pResource)["ok_frame"];
         charge.keepFrames = (*pResource)["keep_frame"];
 
-        pRet->charges.push_back(charge);
+        pRet->charges.push_back(charge);*/
     }
 }
 
@@ -197,7 +209,7 @@ void loadCommands(nlohmann::json* pCommandsJson, CharacterData* pRet)
 
 void loadCommandsFChar(nlohmann::json* pCharJson, CharacterData* pRet)
 {
-    if (!pCharJson || !pCharInfoJson.contains("dataListIdTbl") || !pCharInfoJson.contains("dataListTbl")) {
+    if (!pCharJson || !pCharJson.contains("dataListIdTbl") || !pCharJson.contains("dataListIdTbl")) {
         return;
     }
 
@@ -362,7 +374,7 @@ void loadTriggers(nlohmann::json* pTriggersJson, CharacterData* pRet)
 
 void loadTriggersFChar(nlohmann::json* pTriggersJson, CharacterData* pRet)
 {
-    if (!pCharJson || !pCharInfoJson.contains("dataListIdTbl") || !pCharInfoJson.contains("dataListTbl")) {
+    if (!pCharJson || !pCharJson.contains("dataListIdTbl") || !pCharJson.contains("dataListIdTbl")) {
         return;
     }
 
@@ -534,7 +546,7 @@ void loadTriggerGroups(nlohmann::json* pTriggerGroupsJson, CharacterData* pRet)
 
 void loadTriggerGroupsFChar(nlohmann::json* pCharJson, CharacterData* pRet)
 {
-    if (!pCharJson || !pCharInfoJson.contains("dataListIdTbl") || !pCharInfoJson.contains("dataListTbl")) {
+    if (!pCharJson || !pCharJson.contains("dataListIdTbl") || !pCharJson.contains("dataListIdTbl")) {
         return;
     }
 
@@ -607,7 +619,7 @@ size_t countRects(nlohmann::json* pRectsJson)
 
 size_t countRectsFChar(nlohmann::json* pCharJson)
 {
-    if (!pCharJson || !pCharInfoJson.contains("dataListIdTbl") || !pCharInfoJson.contains("dataListTbl")) {
+    if (!pCharJson || !pCharJson.contains("dataListIdTbl") || !pCharJson.contains("dataListIdTbl")) {
         return 0;
     }
 
@@ -663,7 +675,7 @@ void loadRects(nlohmann::json* pRectsJson, std::vector<Rect>* pOutputVector)
 
 void loadRectsFChar(nlohmann::json* pCharJson, std::vector<Rect>* pOutputVector)
 {
-    if (!pCharJson || !pCharInfoJson.contains("dataListIdTbl") || !pCharInfoJson.contains("dataListTbl") || !outputVector) {
+    if (!pCharJson || !pCharJson.contains("dataListIdTbl") || !pCharJson.contains("dataListIdTbl") || !outputVector) {
         return;
     }
 
@@ -693,7 +705,7 @@ void loadRectsFChar(nlohmann::json* pCharJson, std::vector<Rect>* pOutputVector)
             nlohmann::json &rect = rectGroupJson["obj"][j];
             Rect newRect;
 
-            newRect.listID = i;
+            newRect.listID = i - DataListId::RectStrike;
             newRect.id = rectGroupJson["idTbl"][j];
 
             newRect.xOrig = rect["OffsetX"];
@@ -1477,12 +1489,214 @@ void loadHits(nlohmann::json* pHitJson, std::vector<HitData>* pOutputVector)
     }
 }
 
+void loadHitsFChar(nlohmann::json* pCharJson, std::vector<HitData>* pOutputVector)
+{
+    if (!pCharJson || !pCharJson.contains("dataListIdTbl") || !pCharJson.contains("dataListIdTbl")) {
+        return;
+    }
+
+    int hitIdx = -1;
+
+    for (int i = 0; i < pCharJson["dataListIdTbl"].size(); i++) {
+        if (pCharJson["dataListIdTbl"][i] == DataListId::AttackDataParams) {
+            hitIdx = i;
+            break;
+        }
+    }
+
+    if (hitIdx == -1) return;
+
+    nlohmann::json &hitJson = (*pCharInfoJson)["dataListTbl"][hitIdx];
+
+    if (!hitJson.contains("idTbl") || !hitJson.contains("obj")) {
+        return;
+    }
+
+    pOutputVector.reserve(hitJson["idTbl"].size());
+
+    nlohmann::json &hitParamJson = hitJson["obj"];
+
+    for (int i = 0; i < hitJson["idTbl"].size(); i++) {
+        HitData newHit;
+        newHit.id = hitJson["idTbl"][i];
+
+        nlohmann::json &hitData = hitParamJson[i];
+
+        auto loadHitEntryFChar = [hitData, newHit](bool bCommon) {
+            nlohmann::json &behaviors = bCommon ? hitData["_CommonBehaviors"]["items"] : hitData["_Behaviors"]["items"];
+            for (auto& behavior : behaviors)
+            {
+                int idx = behavior["IndexID"];
+                auto& slot = bCommon ? newHit.common[idx] : newHit.param[idx];
+                slot.moveType = behavior["Category1"];
+                slot.dmgType = categoryToDmgType[slot.moveType];
+                slot.dmgPower = behavior["Strength"];
+                slot.ext0 = behavior["Extension0"];
+                slot.ext1 = behavior["Extension1"];
+                slot.hitStun = behavior["Time"];
+                slot.moveTime = behavior["Time"];
+                slot.moveDestX = behavior["DestX"];
+                slot.moveDestY = behavior["DestY"];
+                slot.boundDest = behavior["BoundDestX"];
+                int attr3 = 0;
+                switch (behavior["Dir"])
+                {
+                    case 1:
+                        attr3 = 4;
+                        break;
+                    case 2:
+                        attr3 = 8;
+                        break;
+                    default:
+                        break;
+                }
+                switch (behavior["Flip"])
+                {
+                    case 1:
+                        attr3 |= 1;
+                        break;
+                    case 2:
+                        attr3 |= 2;
+                        break;
+                    default:
+                        break;
+                }
+                slot.attr3 = attr3;
+            }
+            nlohmann::json &gauges = bCommon ? hitData["_CommonGauges"]["items"] : hitData["_Gauges"]["items"];
+            for (auto& gauge : gauges)
+            {
+                int idx = gauge["IndexID"];
+                auto& slot = bCommon ? newHit.common[idx] : newHit.param[idx];
+                slot.dmgValue = gauge["DamageValue"];
+                slot.recoverableDamage = gauge["RecoverValue"];
+                slot.superGainOwn = gauge["GaugeOwner"];
+                int superGainTarget = gauge["GaugeTarget"];
+                if (gauge["IsGaugeTargetAuto"] && idx != 0xFF)
+                {
+                    if (bCommon)
+                    {
+                        if (idx != 1 && idx != 4)
+                        {
+                            superGainTarget = 70 * slot.superGainOwn;
+                        }
+                        else 
+                        {
+                            superGainTarget = 50 * slot.superGainOwn;
+                        }
+                    }
+                    else if (idx > 19)
+                    {
+                        superGainTarget = 70 * slot.superGainOwn;
+                    }
+                    else 
+                    {
+                        superGainTarget = 50 * slot.superGainOwn;
+                    }
+                    superGainTarget /= 100;
+                }
+
+                slot.superGainTarget = gauge["GaugeTarget"];
+                slot.focusGainOwn = gauge["FocusOwner"];
+            }
+            nlohmann::json &gaugeExs = bCommon ? hitData["_CommonGaugeExs"]["items"] : hitData["_GaugeExs"]["items"];
+            for (auto& gaugeEx : gaugeExs)
+            {
+                int idx = gaugeEx["IndexID"];
+                auto& slot = bCommon ? newHit.common[idx] : newHit.param[idx];
+                slot.focusGainTarget = gauge["FocusTarget0"];
+            }
+            nlohmann::json &timers = bCommon ? hitData["_CommonTimers"]["items"] : hitData["_Timers"]["items"];
+            for (auto& timer : timers)
+            {
+                int idx = timer["IndexID"];
+                auto& slot = bCommon ? newHit.common[idx] : newHit.param[idx];
+                slot.hitStopOwner = gauge["HitStopOwner"];
+                slot.HitStopTarget = gauge["HitStopTarget"];
+                slot.curveOwnID = gauge["AttackOwnerID"];
+                slot.curveTargetID = gauge["AttackTargetID"];
+                slot.downTime = gauge["DownTime"];
+            }
+            nlohmann::json &combos = bCommon ? hitData["_CommonCombos"]["items"] : hitData["_Combos"]["items"];
+            for (auto& combo : combos)
+            {
+                int idx = combo["IndexID"];
+                auto& slot = bCommon ? newHit.common[idx] : newHit.param[idx];
+                slot.comboAdd = combo["ComboAdd"];
+                slot.juggleFirst = combo["Juggle1st"];
+                slot.juggleAdd = combo["JuggleAdd"];
+                slot.juggleLimit = combo["JuggleLimit"];
+            }
+            nlohmann::json &bounds = bCommon ? hitData["_CommonBounds"]["items"] : hitData["_Bounds"]["items"];
+            for (auto& bound : bounds)
+            {
+                int idx = bound["IndexID"];
+                auto& slot = bCommon ? newHit.common[idx] : newHit.param[idx];
+                slot.floorTime = bound["FloorTime"];
+                slot.floorDestX = bound["FloorDestX"];
+                slot.floorDestY = bound["FloorDestY"];
+                slot.wallTime = bound["WallTime"];
+                slot.wallStop = bound["WallStop"];
+                slot.wallDestX = bound["WallDestX"];
+                slot.wallDestY = bound["WallDestY"];
+            }
+            nlohmann::json &advances = bCommon ? hitData["_CommonAdvances"]["items"] : hitData["_Advances"]["items"];
+            for (auto& advance : advances)
+            {
+                int idx = advance["IndexID"];
+                auto& slot = bCommon ? newHit.common[idx] : newHit.param[idx];
+                slot.dmgKind = advance["DamageKind"];
+                slot.attr0 = advance["Attr0"];
+                slot.attr1 = advance["Attr1"];
+            }
+            nlohmann::json &throws = bCommon ? hitData["_Throws"]["items"] : hitData["_Throws"]["items"];
+            for (auto& throw_ : throws)
+            {
+                int idx = throw_["IndexID"];
+                auto& slot = bCommon ? newHit.common[idx] : newHit.param[idx];
+                slot.attr2 = throw_["Attr2"];
+                slot.throwRelease = throw_["ReleaseType"];
+            }
+        };
+
+        loadHitEntryFChar(true);
+        loadHitEntryFChar(false);
+
+        pOutputVector->push_back(newHit);
+    }
+}
+
 int countAtemis(nlohmann::json* pAtemiJson)
 {
     if (!pAtemiJson) {
         return 0;
     }
     return pAtemiJson->size();
+}
+
+int countAtemisFChar(nlohmann::json* pCharJson)
+{
+    if (!pCharJson || !pCharJson.contains("dataListIdTbl") || !pCharJson.contains("dataListIdTbl")) {
+        return 0;
+    }
+
+    int atemiIdx = -1;
+
+    for (int i = 0; i < pCharJson["dataListIdTbl"].size(); i++) {
+        if (pCharJson["dataListIdTbl"][i] == DataListId::AtemiData) {
+            atemiIdx = i;
+            break;
+        }
+    }
+
+    if (atemiIdx == -1) return 0;
+
+    nlohmann::json &atemiJson = (*pCharInfoJson)["dataListTbl"][atemiIdx];
+
+    if (!atemiJson.contains("idTbl") || !atemiJson.contains("obj")) {
+        return 0;
+    }
+    return atemiJson["idTbl"].size();
 }
 
 void loadAtemis(nlohmann::json* pAtemiJson, std::vector<AtemiData>* pOutputVector)
@@ -1494,6 +1708,54 @@ void loadAtemis(nlohmann::json* pAtemiJson, std::vector<AtemiData>* pOutputVecto
     for (auto& [atemiID, atemiData] : pAtemiJson->items()) {
         AtemiData newAtemi;
         newAtemi.id = std::stoi(atemiID);
+        newAtemi.targetStop = atemiData["TargetStop"];
+        newAtemi.ownerStop = atemiData["OwnerStop"];
+        newAtemi.targetStopProj = atemiData["TargetStopShell"];
+        newAtemi.ownerStopProj = atemiData["OwnerStopShell"];
+        newAtemi.targetStopAdd = atemiData["TargetStopAdd"];
+        newAtemi.ownerStopAdd = atemiData["OwnerStopAdd"];
+        newAtemi.targetStopAddProj = atemiData["TargetStopShellAdd"];
+        newAtemi.ownerStopAddProj = atemiData["OwnerStopShellAdd"];
+        newAtemi.resistLimit = atemiData["ResistLimit"];
+        newAtemi.damageRatio = atemiData["DamageRatio"];
+        newAtemi.recoverRatio = atemiData["RecoverRatio"];
+        newAtemi.superRatio = atemiData["GaugeRatio"];
+
+        pOutputVector->push_back(newAtemi);
+    }
+}
+
+void loadAtemisFChar(nlohmann::json* pCharJson, std::vector<AtemiData>* pOutputVector)
+{
+    if (!pCharJson || !pCharJson.contains("dataListIdTbl") || !pCharJson.contains("dataListIdTbl")) {
+        return;
+    }
+
+    int atemiIdx = -1;
+
+    for (int i = 0; i < pCharJson["dataListIdTbl"].size(); i++) {
+        if (pCharJson["dataListIdTbl"][i] == DataListId::AtemiData) {
+            atemiIdx = i;
+            break;
+        }
+    }
+
+    if (atemiIdx == -1) return;
+
+    nlohmann::json &atemiJson = (*pCharInfoJson)["dataListTbl"][atemiIdx];
+
+    if (!atemiJson.contains("idTbl") || !atemiJson.contains("obj")) {
+        return;
+    }
+
+    pRet->commands.reserve(atemiJson["idTbl"].size());
+
+    nlohmann::json &atemiParamJson = atemiJson["obj"];
+
+    for (int i = 0; i < atemiJson["idTbl"].size(); i++) {
+        nlohmann::json &atemiData = atemiParamJson[i];
+        AtemiData newAtemi;
+        newAtemi.id = atemiJson["idTbl"][i];
         newAtemi.targetStop = atemiData["TargetStop"];
         newAtemi.ownerStop = atemiData["OwnerStop"];
         newAtemi.targetStopProj = atemiData["TargetStopShell"];
@@ -1559,7 +1821,7 @@ void loadProjectileDatas(nlohmann::json* pMovesJson, std::map<int, ProjectileDat
 
 void loadProjectileDatasFChar(nlohmann::json* pCharJson, std::map<int, ProjectileData>* pUniqueProjectiles)
 {
-    if (!pCharJson || !pCharInfoJson.contains("dataListIdTbl") || !pCharInfoJson.contains("dataListTbl")) {
+    if (!pCharJson || !pCharJson.contains("dataListIdTbl") || !pCharJson.contains("dataListIdTbl")) {
         return;
     }
 
@@ -1590,62 +1852,23 @@ void loadProjectileDatasFChar(nlohmann::json* pCharJson, std::map<int, Projectil
         // if (newProj.extraHitStop < 0) {
         //     newProj.extraHitStop = 0;
         // }
-        newProj.hitFlagToParent = projData["_HitFlagToPlayer"];
-        newProj.hitStopToParent = projData["_HitStopToPlayer"];
+        newProj.hitFlagToParent = projData["Attr0"] & 8;
+        newProj.hitStopToParent = projData["Attr0"] & 4;
         newProj.rangeB = projData["RangeB"];
         newProj.wallBoxForward = Fixed(projData["WallRangeF"].get<int>());
         newProj.wallBoxBack = Fixed(projData["WallRangeB"].get<int>());
-        newProj.airborne = projData["_AirStatus"];
+        newProj.hitStopToParent = projData["Attr0"] & 0x80000000;
         newProj.flags = projData["Attr0"];
         newProj.flagsExt = projData["AttrX"];
         newProj.category = projData["Category"];
         newProj.clashPriority = projData["ShotLevel"];
-        newProj.noPush = projData["_NoPush"];
+        newProj.noPush = projData["Attr0"] & 0x40000;
         newProj.lifeTime = projData["LifeTime"];
         newProj.hitSpan = projData["HitSpan"];
         newProj.hitDisableMovementFrames = projData["HitAfterFrame"];
         newProj.hitStopOverride = projData["HitStopOverride"];
 
         (*pUniqueProjectiles)[dataIndex] = newProj;    
-    }
-
-    for (auto& [keyID, key] : pMovesJson->items()) {
-        nlohmann::json *pFab = &key["fab"];
-
-        if (pFab->contains("Projectile")) {
-            int dataIndex = (*pFab)["Projectile"]["DataIndex"];
-
-            if (pUniqueProjectiles->find(dataIndex) == pUniqueProjectiles->end()) {
-                if (key.contains("pdata")) {
-                    nlohmann::json *pProjData = &key["pdata"];
-                    ProjectileData newProj;
-                    newProj.id = dataIndex;
-                    newProj.hitCount = (*pProjData)["HitCount"];
-                    newProj.extraHitStop = (*pProjData)["HitAfterFrame"];
-                    // newProj.extraHitStop -= 2;
-                    // if (newProj.extraHitStop < 0) {
-                    //     newProj.extraHitStop = 0;
-                    // }
-                    newProj.hitFlagToParent = (*pProjData)["_HitFlagToPlayer"];
-                    newProj.hitStopToParent = (*pProjData)["_HitStopToPlayer"];
-                    newProj.rangeB = (*pProjData)["RangeB"];
-                    newProj.wallBoxForward = Fixed((*pProjData)["WallRangeF"].get<int>());
-                    newProj.wallBoxBack = Fixed((*pProjData)["WallRangeB"].get<int>());
-                    newProj.airborne = (*pProjData)["_AirStatus"];
-                    newProj.flags = (*pProjData)["Attr0"];
-                    newProj.flagsExt = (*pProjData)["AttrX"];
-                    newProj.category = (*pProjData)["Category"];
-                    newProj.clashPriority = (*pProjData)["ShotLevel"];
-                    newProj.noPush = (*pProjData)["_NoPush"];
-                    newProj.lifeTime = (*pProjData)["LifeTime"];
-                    newProj.hitSpan = (*pProjData)["HitSpan"];
-                    newProj.hitDisableMovementFrames = (*pProjData)["HitAfterFrame"];
-                    newProj.hitStopOverride = (*pProjData)["HitStopOverride"];
-
-                    (*pUniqueProjectiles)[dataIndex] = newProj;
-                }
-            }
-        }
     }
 }
 
@@ -1906,26 +2129,23 @@ CharacterData *loadCharacter(std::string charName, int charVersion)
         }
 
         std::map<int, ProjectileData> uniqueProjectiles;
-        loadProjectileDatas(pCharJson, &uniqueProjectiles);
-        loadProjectileDatas(pCommonJson, &uniqueProjectiles);
+        loadProjectileDatasFChar(pCharJson, &uniqueProjectiles);
+        loadProjectileDatasFChar(pCommonJson, &uniqueProjectiles);
 
         pRet->projectileDatas.reserve(uniqueProjectiles.size());
         for (auto& [id, projData] : uniqueProjectiles) {
             pRet->projectileDatas.push_back(projData);
         }
 
-        pRet->atemis.reserve(countAtemis(pAtemiJson) + countAtemis(pCommonAtemiJson));
-        loadAtemis(pCommonAtemiJson, &pRet->atemis);
-        loadAtemis(pAtemiJson, &pRet->atemis);
+        pRet->atemis.reserve(countAtemisFChar(pCharJson) + countAtemisFChar(pCommonJson));
+        loadAtemisFChar(pCommonJson, &pRet->atemis);
+        loadAtemisFChar(pCharJson, &pRet->atemis);
 
         for (auto& atemi : pRet->atemis) {
             pRet->atemiByID[atemi.id] = &atemi;
         }
 
-        if (pHitJson) {
-            pRet->hits.reserve(pHitJson->size());
-        }
-        loadHits(pHitJson, &pRet->hits);
+        loadHitsFChar(pHitJson, &pRet->hits);
 
         for (auto& hit : pRet->hits) {
             pRet->hitByID[hit.id] = &hit;
@@ -1942,8 +2162,6 @@ CharacterData *loadCharacter(std::string charName, int charVersion)
         }
 
         ProcessDynamicCharData(pRet);
-
-        return pRet;
 
         return pRet;
     }
