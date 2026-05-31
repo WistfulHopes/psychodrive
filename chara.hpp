@@ -77,7 +77,7 @@ enum class DataListId : int32_t {
     AttackDataCommon = 105,
     RectCommon = 106,
     Num = 107,
-}
+};
 
 struct Charge {
     int id;
