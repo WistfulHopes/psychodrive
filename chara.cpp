@@ -399,11 +399,12 @@ void loadTriggersFChar(nlohmann::json* pCharJson, CharacterData* pRet)
 
     pRet->commands.reserve(triggerJson["idTbl"].size());
 
-    nlohmann::json &triggerData = triggerJson["obj"];
+    nlohmann::json &triggerParamJson = triggerJson["obj"];
 
     for (int i = 0; i < triggerJson["idTbl"].size(); i++) {
         Trigger trigger;
 
+        nlohmann::json &triggerData = triggerParamJson[i];
         trigger.id = triggerJson["idTbl"][i];
         trigger.actionID = triggerData["Action"];
 
@@ -479,7 +480,7 @@ void loadTriggersFChar(nlohmann::json* pCharJson, CharacterData* pRet)
         trigger.vitalOp = triggerData["Condition"]["VitalRatioCondition"];
         trigger.vitalRatio = triggerData["Condition"]["VitalRatio"];
 
-        trigger.rangeCondition = triggerData["RangeConditionType"];
+        trigger.rangeCondition = triggerData["Condition"]["RangeConditionType"];
         trigger.rangeParam = Fixed((double)triggerData["Condition"]["RangeFix"]["v"] / 65536.0);
 
         trigger.stateCondition = triggerData["Condition"]["State"];
@@ -680,6 +681,7 @@ void loadRectsFChar(nlohmann::json* pCharJson, std::vector<Rect>* pOutputVector)
         return;
     }
 
+    int listId = -1;
     for (int i = (int)DataListId::RectStrike; i < (int)DataListId::MissionData; i++)
     {
         int rectGroupIdx = -1;
@@ -691,12 +693,13 @@ void loadRectsFChar(nlohmann::json* pCharJson, std::vector<Rect>* pOutputVector)
             }
         }
 
-        if (rectGroupIdx == -1) return;
+        if (rectGroupIdx == -1) continue;
 
+        listId++;
         nlohmann::json &rectGroupJson = (*pCharJson)["dataListTbl"][rectGroupIdx];
 
         if (!rectGroupJson.contains("idTbl") || !rectGroupJson.contains("obj")) {
-            return;
+            continue;
         }
 
         for (int j = 0; j < rectGroupJson["idTbl"].size(); j++)
@@ -704,7 +707,7 @@ void loadRectsFChar(nlohmann::json* pCharJson, std::vector<Rect>* pOutputVector)
             nlohmann::json &rect = rectGroupJson["obj"][j];
             Rect newRect;
 
-            newRect.listID = i - (int)DataListId::RectStrike;
+            newRect.listID = listId;
             newRect.id = rectGroupJson["idTbl"][j];
 
             newRect.xOrig = rect["OffsetX"];
@@ -790,12 +793,12 @@ void loadHurtBoxKeysFChar(nlohmann::json* pHurtBoxJson, std::vector<HurtBoxKey>*
         return;
     }
 
-    int magicHurtBoxID = (int)DataListId::RectHurt - (int)DataListId::RectStrike;
-    int magicThrowBoxID = (int)DataListId::RectHurtThrow - (int)DataListId::RectStrike;
+    int magicHurtBoxID = 8;
+    int magicThrowBoxID = 7;
 
     for (int i = 0; i < (*pHurtBoxJson)["dataTbl"].size(); i++) {
-        auto& key = (*pHurtBoxJson)["dataTbl"];
-        auto& hurtBox = (*pHurtBoxJson)["obj"];
+        auto& key = (*pHurtBoxJson)["dataTbl"][i];
+        auto& hurtBox = (*pHurtBoxJson)["obj"][i];
         if (!key.contains("startFrame")) {
             continue;
         }
@@ -885,8 +888,8 @@ void loadPushBoxKeysFChar(nlohmann::json* pPushBoxJson, std::vector<PushBoxKey>*
     }
 
     for (int i = 0; i < (*pPushBoxJson)["dataTbl"].size(); i++) {
-        auto& key = (*pPushBoxJson)["dataTbl"];
-        auto& pushBox = (*pPushBoxJson)["obj"];
+        auto& key = (*pPushBoxJson)["dataTbl"][i];
+        auto& pushBox = (*pPushBoxJson)["obj"][i];
         if (!key.contains("startFrame")) {
             continue;
         }
@@ -897,7 +900,7 @@ void loadPushBoxKeysFChar(nlohmann::json* pPushBoxJson, std::vector<PushBoxKey>*
         newKey.offsetX = Fixed(pushBox["STRUCT_RootOffset_X"].get<int>());
         newKey.offsetY = Fixed(pushBox["STRUCT_RootOffset_Y"].get<int>());
         int boxID = pushBox["BoxNo"];
-        auto it = rectsByIDs.find(std::make_pair((int)DataListId::RectPush - (int)DataListId::RectStrike, boxID));
+        auto it = rectsByIDs.find(std::make_pair(5, boxID));
         if (it != rectsByIDs.end()) {
             newKey.rect = it->second;
             pOutputVector->push_back(newKey);
@@ -1071,8 +1074,8 @@ void loadHitBoxKeysFChar(nlohmann::json* pHitBoxJson, std::vector<HitBoxKey>* pO
     }
 
     for (int i = 0; i < (*pHitBoxJson)["dataTbl"].size(); i++) {
-        auto& key = (*pHitBoxJson)["dataTbl"];
-        auto& hitBox = (*pHitBoxJson)["obj"];
+        auto& key = (*pHitBoxJson)["dataTbl"][i];
+        auto& hitBox = (*pHitBoxJson)["obj"][i];
         if (!key.contains("startFrame")) {
             continue;
         }
@@ -1094,7 +1097,7 @@ void loadHitBoxKeysFChar(nlohmann::json* pHitBoxJson, std::vector<HitBoxKey>* pO
         int rectListID = collisionType;
 
         if (isOther) {
-            rectListID = (int)DataListId::RectOther - (int)DataListId::RectStrike;
+            rectListID = 9;
             if (collisionType == 6) {
                 type = nullify_grab;
                 rectListID = 4;
@@ -1280,8 +1283,8 @@ void loadUniqueBoxKeysFChar(nlohmann::json* pHitBoxJson, std::vector<UniqueBoxKe
     }
 
     for (int i = 0; i < (*pHitBoxJson)["dataTbl"].size(); i++) {
-        auto& key = (*pHitBoxJson)["dataTbl"];
-        auto& hitBox = (*pHitBoxJson)["obj"];
+        auto& key = (*pHitBoxJson)["dataTbl"][i];
+        auto& hitBox = (*pHitBoxJson)["obj"][i];
         if (!key.contains("startFrame")) {
             continue;
         }
@@ -1292,7 +1295,7 @@ void loadUniqueBoxKeysFChar(nlohmann::json* pHitBoxJson, std::vector<UniqueBoxKe
         newKey.offsetX = Fixed(hitBox["STRUCT_RootOffset_X"].get<int>());
         newKey.offsetY = Fixed(hitBox["STRUCT_RootOffset_Y"].get<int>());
 
-        int rectListID = (int)DataListId::RectUnique - (int)DataListId::RectStrike;
+        int rectListID = 6;
 
         newKey.checkMask = hitBox["CheckFlags"];
         newKey.uniquePitcher = hitBox["CheckType"] == 0;
@@ -1359,8 +1362,8 @@ void loadSteerKeysFChar(nlohmann::json* pSteerJson, std::vector<SteerKey>* pOutp
     }
 
     for (int i = 0; i < (*pSteerJson)["dataTbl"].size(); i++) {
-        auto& key = (*pSteerJson)["dataTbl"];
-        auto& steerKey = (*pSteerJson)["obj"];
+        auto& key = (*pSteerJson)["dataTbl"][i];
+        auto& steerKey = (*pSteerJson)["obj"][i];
         if (!key.contains("startFrame")) {
             continue;
         }
@@ -1369,9 +1372,9 @@ void loadSteerKeysFChar(nlohmann::json* pSteerJson, std::vector<SteerKey>* pOutp
         newKey.endFrame = key["endFrame"];
         newKey.operationType = steerKey["OperationType"];
         newKey.valueType = steerKey["ValueType"];
-        newKey.fixValue = Fixed((double)steerKey["FixValue"] / 65536.0);
-        newKey.targetOffsetX = Fixed((double)steerKey["FixTargetOffsetX"] / 65536.0);
-        newKey.targetOffsetY = Fixed((double)steerKey["FixTargetOffsetY"] / 65536.0);
+        newKey.fixValue = Fixed((double)steerKey["FixValue"]["v"] / 65536.0);
+        newKey.targetOffsetX = Fixed((double)steerKey["FixTargetOffsetX"]["v"] / 65536.0);
+        newKey.targetOffsetY = Fixed((double)steerKey["FixTargetOffsetY"]["v"] / 65536.0);
         newKey.shotCategory = steerKey.value("Param", 0);
         newKey.targetType = steerKey.value("TargetType", 0);
         newKey.calcValueFrame = steerKey.value("CalcValueFrame", 0);
@@ -1677,12 +1680,12 @@ void loadStyles(nlohmann::json* pCharInfoJson, std::vector<StyleData>* pOutputVe
 
 void loadStylesFChar(nlohmann::json* pCharJson, std::vector<StyleData>* pOutputVector)
 {
-    if (!pCharJson || !pCharJson->contains("actionListTbl") || !(*pCharJson)["actionListTbl"].contains("objTbl") ||
+    if (!pCharJson || !pCharJson->contains("actionListTbl") || 
         !(*pCharJson).contains("idTbl") || !(*pCharJson).contains("parentIdTbl")) {
         return;
     }
 
-    nlohmann::json &stylesJson = (*pCharJson)["actionListTbl"]["objTbl"];
+    nlohmann::json &stylesJson = (*pCharJson)["actionListTbl"];
     nlohmann::json &idTbl = (*pCharJson)["idTbl"];
     nlohmann::json &parentIdTbl = (*pCharJson)["parentIdTbl"];
 
@@ -1695,7 +1698,7 @@ void loadStylesFChar(nlohmann::json* pCharJson, std::vector<StyleData>* pOutputV
     }
 
     for (int i = 0; i <= maxStyleID; i++) {
-        nlohmann::json &styleJson = stylesJson[i];
+        nlohmann::json &styleJson = stylesJson[i]["objTbl"][0][0];
         StyleData &newStyle = (*pOutputVector)[i];
 
         newStyle.id = idTbl[i];
@@ -2399,7 +2402,7 @@ void loadActionsFromMovesFChar(nlohmann::json* pCharJson, nlohmann::json* pNames
             else
                 newAction.name = actionIDStr;
 
-            auto& fab = action["objTbl"][0];
+            auto& fab = action["objTbl"][0][0];
             newAction.activeFrame = fab["ActionFrame"]["MainFrame"];
             newAction.recoveryStartFrame = fab["ActionFrame"]["FollowFrame"];
             newAction.recoveryEndFrame = fab["ActionFrame"]["MarginFrame"];
@@ -2424,7 +2427,7 @@ void loadActionsFromMovesFChar(nlohmann::json* pCharJson, nlohmann::json* pNames
             if (fab.contains("Inherit")) {
                 nlohmann::json *pInherit = &fab["Inherit"];
                 newAction.inheritKindFlag = (*pInherit)["KindFlag"];
-                newAction.inheritHitID = (*pInherit)["_HitID"];
+                newAction.inheritHitID = (*pInherit)["KindFlag"].get<int>() & 8;
                 if (pInherit->contains("Accelaleration")) {
                     newAction.inheritAccelX = Fixed((double)(*pInherit)["Accelaleration"]["x"]["v"] / 65536.0);
                     newAction.inheritAccelY = Fixed((double)(*pInherit)["Accelaleration"]["y"]["v"] / 65536.0);
@@ -2468,6 +2471,7 @@ void loadActionsFromMovesFChar(nlohmann::json* pCharJson, nlohmann::json* pNames
                     loadSteerKeysFChar(&key, &newAction.steerKeys, true);
                 }
             }
+            pRet->actions.push_back(newAction);
         }
     }
 }
@@ -2515,9 +2519,9 @@ CharacterData *loadCharacter(std::string charName, int charVersion)
         pRet->charID = getCharIDFromName(charName.c_str());
    
         if (pCharJson) {
-            pRet->vitality = (*pCharJson)["objTbl"][0]["Vitality"];
-            pRet->gauge = (*pCharJson)["objTbl"][0]["Gauge"].get<int>();
-            pRet->flags = (*pCharJson)["objTbl"][0]["Attribute"];
+            pRet->vitality = (*pCharJson)["objTbl"][0][0]["Vitality"];
+            pRet->gauge = (*pCharJson)["objTbl"][0][0]["Gauge"].get<int>();
+            pRet->flags = (*pCharJson)["objTbl"][0][0]["Attribute"];
         }
 
         loadStylesFChar(pCharJson, &pRet->styles);
