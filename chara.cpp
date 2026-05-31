@@ -2227,6 +2227,18 @@ void loadHitsFChar(nlohmann::json* pCharJson, std::vector<HitData>* pOutputVecto
 
         auto loadHitEntryFChar = [](nlohmann::json &hitData, HitData& newHit, bool bCommon) {
             nlohmann::json &behaviors = bCommon ? hitData["_CommonBehaviors"]["items"] : hitData["_Behaviors"]["items"];
+            if (!bCommon)
+            {
+                for (int i = 0; i < 20; i++)
+                {
+                    auto& slot = newHit.param[i];
+                    auto& commonSlot = newHit.common[i / 4];
+                    if (i != 10 && i != 14)
+                    {
+                        slot = commonSlot;
+                    }
+                }
+            }
             for (int i = 0; i < behaviors.size(); i++)
             {
                 auto& behavior = behaviors[i];
@@ -2272,6 +2284,15 @@ void loadHitsFChar(nlohmann::json* pCharJson, std::vector<HitData>* pOutputVecto
                 auto& gauge = gauges[i];
                 int idx = gauge["IndexID"];
                 auto& slot = bCommon ? newHit.common[idx] : newHit.param[idx];
+                if (!bCommon)
+                {
+                    auto& commonSlot = newHit.common[i / 4];
+                    slot.dmgValue = commonSlot.dmgValue;
+                    slot.recoverableDamage = commonSlot.recoverableDamage;
+                    slot.superGainOwn = commonSlot.superGainOwn;
+                    slot.superGainTarget = commonSlot.superGainTarget;
+                    slot.focusGainOwn = commonSlot.focusGainOwn;    
+                }
                 slot.dmgValue = gauge["DamageValue"];
                 slot.recoverableDamage = gauge["RecoverValue"];
                 slot.superGainOwn = gauge["GaugeOwner"];
