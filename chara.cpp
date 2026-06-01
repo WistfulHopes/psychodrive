@@ -2791,13 +2791,23 @@ void loadActionsFromMovesFChar(nlohmann::json* pCharJson, nlohmann::json* pNames
     for (int i = 0; i < actionListTblJson.size(); i++)
     {
         auto& style = actionListTblJson[i];
+        auto parentID = pRet->styles[i].parentStyleID;
+        for (auto& action : pRet->actions) {
+            if (action.styleID == parentID) {
+                Action newAction = action;
+                newAction.styleID = i;
+                pRet->actions.push_back(newAction);
+                break;
+            }
+        }
         for (int j = 0; j < style["dataTbl"].size(); j++)
         {
             auto& action = style["dataTbl"][j];
             auto actionID = action["actionID"];
+            auto refActionID = action["refActionID"];
             Action newAction;
             for (auto& cmnAction : pRet->actions) {
-                if (cmnAction.actionID == actionID) {
+                if (cmnAction.actionID == refActionID && cmnAction.styleID == i) {
                     newAction = cmnAction;
                     break;
                 }
@@ -2914,7 +2924,7 @@ void loadActionsFromMovesFChar(nlohmann::json* pCharJson, nlohmann::json* pNames
             }
             bool bIsCommon = false;
             for (auto& cmnAction : pRet->actions) {
-                if (cmnAction.actionID == actionID) {
+                if (cmnAction.actionID == refActionID && cmnAction.styleID == i) {
                     cmnAction = newAction;
                     bIsCommon = true;
                     break;
