@@ -2924,7 +2924,7 @@ void loadActionsFromMovesFChar(nlohmann::json* pCharJson, nlohmann::json* pNames
             }
             bool bIsCommon = false;
             for (auto& cmnAction : pRet->actions) {
-                if (cmnAction.actionID == refActionID && cmnAction.styleID == i) {
+                if (cmnAction.actionID == newAction.actionID && cmnAction.styleID == i) {
                     cmnAction = newAction;
                     bIsCommon = true;
                     break;
