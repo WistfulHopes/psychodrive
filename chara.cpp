@@ -2831,6 +2831,15 @@ void loadActionsFromMovesFChar(nlohmann::json* pCharJson, nlohmann::json* pNames
             newAction.startScale = fab["Combo"]["_StartScaling"];
             newAction.comboScale = fab["Combo"]["ComboScaling"];
             newAction.instantScale = fab["Combo"]["InstScaling"];
+            if (newAction.startScale < 0) {
+                newAction.startScale = 0;
+            }
+            if (newAction.comboScale < 0) {
+                newAction.comboScale = 10;
+            }
+            if (newAction.instantScale < 0) {
+                newAction.instantScale = 0;
+            }
             if (fab.contains("Projectile"))
             {
                 int dataIndex = fab["Projectile"]["DataIndex"];
@@ -2932,7 +2941,7 @@ void loadActionsFromMovesFChar(nlohmann::json* pCharJson, nlohmann::json* pNames
             }
             if (!bIsCommon) pRet->actions.push_back(newAction);
         }
-    }
+    }-1
 }
 
 void ProcessDynamicCharData(CharacterData *pCharData)
