@@ -2941,7 +2941,7 @@ void loadActionsFromMovesFChar(nlohmann::json* pCharJson, nlohmann::json* pNames
             }
             if (!bIsCommon) pRet->actions.push_back(newAction);
         }
-    }-1
+    }
 }
 
 void ProcessDynamicCharData(CharacterData *pCharData)
